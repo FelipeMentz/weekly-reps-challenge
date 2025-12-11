@@ -2,6 +2,8 @@ import streamlit as st
 import pandas as pd
 from datetime import date, timedelta
 from pathlib import Path
+import json
+
 
 # Google Sheets imports
 import gspread
@@ -56,10 +58,10 @@ def connect_to_sheets():
     scope = ["https://spreadsheets.google.com/feeds",
              "https://www.googleapis.com/auth/drive"]
 
-    creds = ServiceAccountCredentials.from_json_keyfile_name(
-        SERVICE_ACCOUNT_FILE, scope
-    )
+    service_account_info = st.secrets["gcp_service_account"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
     client = gspread.authorize(creds)
+    sheet = client.open(GOOGLE_SHEET_NAME).sheet1
 
     return client.open(GOOGLE_SHEET_NAME).sheet1
 
