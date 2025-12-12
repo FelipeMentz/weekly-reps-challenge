@@ -79,7 +79,7 @@ except Exception as e:
 # -----------------------------
 st.set_page_config(page_title="Weekly Reps Challenge")
 st.title("🏋️ Weekly Reps Challenge")
-st.write("Now syncing with **Google Sheets only**!")
+st.write("If you don't complete your 500 reps weekly (including at least 100 pull-ups) it means you are **A PUSSY**!\n Let's move!")
 
 left_col, right_col = st.columns([1.2, 2.5])
 

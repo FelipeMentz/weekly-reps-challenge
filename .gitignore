@@ -12,3 +12,5 @@ env/
 
 # dev folder
 .devcontainer
+
+service_account.json
