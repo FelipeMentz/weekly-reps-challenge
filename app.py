@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
-from datetime import date, timedelta
+from datetime import date
 from pathlib import Path
-import json
 
 # Google Sheets imports
 import gspread
@@ -13,11 +12,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 # -----------------------------
 BASELINE_WEEK_START = date(2025, 12, 8)
 
-CSV_PATH = Path("data/logs.csv")
-CSV_PATH.parent.mkdir(exist_ok=True)
-
-GOOGLE_SHEET_NAME = "weekly-reps"   # Your sheet name
-SERVICE_ACCOUNT_FILE = "service_account.json"
+GOOGLE_SHEET_NAME = "weekly-reps"   # Production sheet name
 
 
 # -----------------------------
@@ -30,36 +25,17 @@ def get_custom_week_index(d: date) -> int:
 
 
 # -----------------------------
-# STORAGE LAYER — CSV
-# -----------------------------
-def load_from_csv():
-    if CSV_PATH.exists() and CSV_PATH.stat().st_size > 0:
-        return pd.read_csv(
-            CSV_PATH,
-            dtype={
-                "week_index": "Int64",
-                "reps": "Int64",
-                "pullup_reps": "Int64",
-            }
-        )
-    return pd.DataFrame(columns=["name", "exercise", "reps", "pullup_reps", "date", "week_index"])
-
-
-def save_to_csv(df):
-    df.to_csv(CSV_PATH, index=False)
-
-
-# -----------------------------
-# STORAGE LAYER — GOOGLE SHEETS
+# GOOGLE SHEETS FUNCTIONS
 # -----------------------------
 def connect_to_sheets():
-    scope = ["https://spreadsheets.google.com/feeds",
-             "https://www.googleapis.com/auth/drive"]
+    scope = [
+        "https://spreadsheets.google.com/feeds",
+        "https://www.googleapis.com/auth/drive"
+    ]
 
     service_account_info = st.secrets["gcp_service_account"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(service_account_info, scope)
     client = gspread.authorize(creds)
-    sheet = client.open(GOOGLE_SHEET_NAME).sheet1
 
     return client.open(GOOGLE_SHEET_NAME).sheet1
 
@@ -68,6 +44,7 @@ def load_from_sheets(sheet):
     data = sheet.get_all_records()
     if not data:
         return pd.DataFrame(columns=["name", "exercise", "reps", "pullup_reps", "date", "week_index"])
+
     df = pd.DataFrame(data)
     df["reps"] = df["reps"].astype(int)
     df["pullup_reps"] = df["pullup_reps"].astype(int)
@@ -76,7 +53,6 @@ def load_from_sheets(sheet):
 
 
 def append_to_sheets(sheet, row_dict):
-    """Append a new row to Google Sheets."""
     sheet.append_row([
         row_dict["name"],
         row_dict["exercise"],
@@ -88,19 +64,14 @@ def append_to_sheets(sheet, row_dict):
 
 
 # -----------------------------
-# LOAD DATA FROM BOTH SOURCES
+# LOAD MAIN DATA (Sheets only)
 # -----------------------------
 try:
     sheet = connect_to_sheets()
-    df_sheets = load_from_sheets(sheet)
+    df = load_from_sheets(sheet)
 except Exception as e:
     st.error(f"Google Sheets error: {e}")
-    df_sheets = pd.DataFrame()
-
-df_csv = load_from_csv()
-
-# Merge both (CSV is local backup)
-df = pd.concat([df_csv, df_sheets], ignore_index=True).drop_duplicates()
+    df = pd.DataFrame()
 
 
 # -----------------------------
@@ -108,7 +79,7 @@ df = pd.concat([df_csv, df_sheets], ignore_index=True).drop_duplicates()
 # -----------------------------
 st.set_page_config(page_title="Weekly Reps Challenge")
 st.title("🏋️ Weekly Reps Challenge")
-st.write("Now syncing with **CSV + Google Sheets**!")
+st.write("Now syncing with **Google Sheets only**!")
 
 left_col, right_col = st.columns([1.2, 2.5])
 
@@ -125,10 +96,7 @@ with left_col:
             "Exercise",
             ["Pull-up", "Push-up", "Squat", "Dip", "Other"]
         )
-        reps = st.number_input(
-            "How many reps?",
-            min_value=1, step=1, value=10
-        )
+        reps = st.number_input("How many reps?", min_value=1, step=1, value=10)
 
         submitted = st.form_submit_button("Submit")
 
@@ -145,48 +113,43 @@ with left_col:
             "week_index": int(week_index),
         }
 
-        # Update local DataFrame
+        # Update in-memory df
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
 
-        # Save to CSV
-        save_to_csv(df)
-
-        # Save to Google Sheets
+        # Save ONLY to Google Sheets
         append_to_sheets(sheet, new_row)
 
         st.success(f"Saved: {name} – {reps} x {exercise} on {today} 💪")
 
+    # -----------------------------
+    # WEEKLY STANDINGS
+    # -----------------------------
+    with right_col:
+        if not df.empty:
+            person_week = df.groupby(["week_index", "name"]).agg(
+                total_reps=("reps", "sum"),
+                total_pullups=("pullup_reps", "sum")
+            ).reset_index()
 
-# -----------------------------
-# WEEKLY STANDINGS
-# -----------------------------
-with right_col:
-    if not df.empty:
-        person_week = df.groupby(["week_index", "name"]).agg(
-            total_reps=("reps", "sum"),
-            total_pullups=("pullup_reps", "sum")
-        ).reset_index()
+            current_week = int(person_week["week_index"].max())
+            current_week_data = person_week[person_week["week_index"] == current_week]
 
-        current_week = int(person_week["week_index"].max())
-        current_week_data = person_week[person_week["week_index"] == current_week]
+            current_week_data["completed"] = (
+                    (current_week_data["total_reps"] >= 500) &
+                    (current_week_data["total_pullups"] >= 100)
+            )
+            current_week_data["status"] = current_week_data["completed"].apply(
+                lambda x: "Completed" if x else "Not yet"
+            )
 
-        current_week_data["completed"] = (
-            (current_week_data["total_reps"] >= 500) &
-            (current_week_data["total_pullups"] >= 100)
-        )
-        current_week_data["status"] = current_week_data["completed"].apply(
-            lambda x: "Completed" if x else "Not yet"
-        )
+            st.subheader(f"Week {current_week} standings")
 
-        st.subheader(f"Week {current_week} standings")
+            st.table(
+                current_week_data[["name", "total_reps", "total_pullups", "status"]]
+                .sort_values("total_reps", ascending=False)
+            )
+        else:
+            st.write("No logs yet.")
 
-        st.table(
-            current_week_data[["name", "total_reps", "total_pullups", "status"]]
-            .sort_values("total_reps", ascending=False)
-        )
-    else:
-        st.write("No logs yet.")
-
-    st.subheader("All logged reps (merged CSV + Sheets)")
-    st.table(df[["name", "exercise", "reps", "date", "week_index"]])
-
+        st.subheader("All logged reps")
+        st.table(df[["name", "exercise", "reps", "date", "week_index"]])
