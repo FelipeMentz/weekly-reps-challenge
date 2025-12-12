@@ -142,7 +142,7 @@ with left_col:
                 lambda x: "Completed" if x else "Not yet"
             )
 
-            st.subheader("Weekly Progress (Simple Progress Bars)")
+            st.subheader(f"Week {current_week} standings")
 
             for _, row in current_week_data.iterrows():
                 st.write(f"### {row['name']}")
@@ -156,6 +156,9 @@ with left_col:
                 pull_progress = min(row["total_pullups"] / 100, 1.0)
                 st.write(f"Pull-ups: {row['total_pullups']} / 100")
                 st.progress(pull_progress)
+
+                if row["total_reps"] >= 500 & row["total_pullups"] >= 100:
+                    st.write(f"Congrats, {row['name']}! You've completed the week {current_week}")
 
         st.subheader("All logged reps")
         st.table(df[["name", "exercise", "reps", "date", "week_index"]])
