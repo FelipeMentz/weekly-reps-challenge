@@ -142,14 +142,20 @@ with left_col:
                 lambda x: "Completed" if x else "Not yet"
             )
 
-            st.subheader(f"Week {current_week} standings")
+            st.subheader("Weekly Progress (Simple Progress Bars)")
 
-            st.table(
-                current_week_data[["name", "total_reps", "total_pullups", "status"]]
-                .sort_values("total_reps", ascending=False)
-            )
-        else:
-            st.write("No logs yet.")
+            for _, row in current_week_data.iterrows():
+                st.write(f"### {row['name']}")
+
+                # Reps progress
+                reps_progress = min(row["total_reps"] / 500, 1.0)
+                st.write(f"Reps: {row['total_reps']} / 500")
+                st.progress(reps_progress)
+
+                # Pull-ups progress
+                pull_progress = min(row["total_pullups"] / 100, 1.0)
+                st.write(f"Pull-ups: {row['total_pullups']} / 100")
+                st.progress(pull_progress)
 
         st.subheader("All logged reps")
         st.table(df[["name", "exercise", "reps", "date", "week_index"]])
