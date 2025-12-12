@@ -77,7 +77,7 @@ except Exception as e:
 # -----------------------------
 # PAGE SETUP
 # -----------------------------
-st.set_page_config(page_title="Weekly Reps Challenge", icon="Home Page")
+st.set_page_config(page_title="Weekly Reps Challenge")
 st.title("🏋️ Weekly Reps Challenge")
 st.write("If you don't complete your 500 reps weekly (including at least 100 pull-ups) it means you are **A PUSSY**!\n Let's move!")
 
