@@ -160,5 +160,4 @@ with left_col:
                 if row["total_reps"] >= 500 & row["total_pullups"] >= 100:
                     st.write(f"Congrats, {row['name']}! You've completed the week {current_week}")
 
-        st.subheader("All logged reps")
-        st.table(df[["name", "exercise", "reps", "date", "week_index"]])
+
