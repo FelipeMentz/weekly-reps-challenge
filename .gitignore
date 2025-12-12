@@ -9,3 +9,6 @@ data/
 .venv/
 venv/
 env/
+
+# dev folder
+.devcontainer
