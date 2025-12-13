@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import date
-from app.py import load_from_sheets, connect_to_sheets  # import your functions
+from app import load_from_sheets, connect_to_sheets  # import your functions
 
 st.set_page_config(page_title="All Logged Reps")
 
