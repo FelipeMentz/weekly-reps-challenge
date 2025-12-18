@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 from datetime import date
+from config import CHALLENGE_CONFIG
+from config import MODE
 from pathlib import Path
 
 # Google Sheets imports
@@ -10,7 +12,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 # -----------------------------
 # CONFIG
 # -----------------------------
-BASELINE_WEEK_START = date(2025, 12, 8)
+BASELINE_WEEK_START = date(2025, 12, 15)
 
 GOOGLE_SHEET_NAME = "weekly-reps"   # Production sheet name
 
@@ -19,8 +21,10 @@ GOOGLE_SHEET_NAME = "weekly-reps"   # Production sheet name
 # -----------------------------
 def get_custom_week_index(d: date) -> int:
     delta_days = (d - BASELINE_WEEK_START).days
-    week_number = delta_days // 7
-    return max(week_number + 1, 1)
+    if delta_days < 0:
+        return 0
+    return (delta_days // 7) + 1
+
 
 
 # -----------------------------
@@ -42,11 +46,12 @@ def connect_to_sheets():
 def load_from_sheets(sheet):
     data = sheet.get_all_records()
     if not data:
-        return pd.DataFrame(columns=["name", "exercise", "reps", "pullup_reps", "date", "week_index"])
+        return pd.DataFrame(columns=["name", "exercise", "reps", "date", "week_index"])
 
     df = pd.DataFrame(data)
     df["reps"] = df["reps"].astype(int)
-    df["pullup_reps"] = df["pullup_reps"].astype(int)
+    # Normalize exercise names to lowercase (matches config keys)
+    df["exercise"] = df["exercise"].str.lower()
     df["week_index"] = df["week_index"].astype(int)
     return df
 
@@ -56,7 +61,6 @@ def append_to_sheets(sheet, row_dict):
         row_dict["name"],
         row_dict["exercise"],
         row_dict["reps"],
-        row_dict["pullup_reps"],
         row_dict["date"],
         row_dict["week_index"]
     ])
@@ -66,38 +70,113 @@ def append_to_sheets(sheet, row_dict):
 # LOAD MAIN DATA (Sheets only)
 # -----------------------------
 try:
-    sheet = connect_to_sheets()
-    df = load_from_sheets(sheet)
+    if MODE == "prod":
+        sheet = connect_to_sheets()
+        df = load_from_sheets(sheet)
+    else:
+        df = pd.DataFrame(
+            [
+                {
+                    "name": "Felipe",
+                    "exercise": "squat",
+                    "reps": 120,
+                    "date": "2025-12-15",
+                    "week_index": 1,
+                },
+                {
+                    "name": "Kaden",
+                    "exercise": "push-up",
+                    "reps": 80,
+                    "date": "2025-12-15",
+                    "week_index": 1,
+                },
+            ]
+        )
+
 except Exception as e:
     st.error(f"Google Sheets error: {e}")
     df = pd.DataFrame()
+
+# Weekly reps per person per exercise
+weekly_exercise_reps = (
+    df.groupby(["name", "week_index", "exercise"])["reps"]
+    .sum()
+    .reset_index()
+)
+
+# ----------------
+# function
+# ---------------
+
+def evaluate_week_status(weekly_df, config):
+
+    exercise_status = {}
+
+    for exercise_key, cfg in config.items():
+        target = cfg["weekly_target"]
+
+        reps_done = (
+            weekly_df.loc[weekly_df["exercise"] == exercise_key, "reps"]
+            .sum()
+        )
+
+        progress = min(reps_done / target, 1.0)
+
+        exercise_status[exercise_key] = {
+            "reps": int(reps_done),
+            "target": target,
+            "completed": reps_done >= target,
+            "progress": progress,
+        }
+
+    week_completed = all(
+        ex["completed"] for ex in exercise_status.values()
+    )
+
+    return {
+        "exercise_status": exercise_status,
+        "week_completed": week_completed,
+    }
 
 
 # -----------------------------
 # PAGE SETUP
 # -----------------------------
 st.set_page_config(page_title="Weekly Reps Challenge")
-st.title("🏋️ Weekly Reps Challenge")
-st.write("If you don't complete your 500 reps weekly (including at least 100 pull-ups) it means you are **A PUSSY**!\n Let's move!")
-
-left_col, right_col = st.columns([1.2, 2.5])
-
+st.title("1000 CHALLENGE")
+st.write("400 Squats, 300 Push-Ups, 200 Dips, and 100 Pull-Ups WEEKLY is what it takes to turn boys into men!")
 
 # -----------------------------
 # FORM
 # -----------------------------
-with left_col:
-    st.subheader("Log your reps")
+st.subheader("Log your reps")
 
-    with st.form("reps_form"):
+with st.form("log_form"):
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
         name = st.selectbox("Who are you?", ["Felipe", "Kaden"])
+
+    with col2:
         exercise = st.selectbox(
             "Exercise",
-            ["Pull-up", "Push-up", "Squat", "Dip", "Other"]
+            [cfg["display_name"] for cfg in CHALLENGE_CONFIG.values()]
         )
-        reps = st.number_input("How many reps?", min_value=1, step=1, value=10)
+
+    with col3:
+        reps = st.number_input(
+            "Reps",
+            min_value=1,
+            step=1,
+            value=10
+        )
+
+    with col4:
+        st.write("\n")
+        st.write("\n")
 
         submitted = st.form_submit_button("Submit")
+
 
     if submitted:
         today = date.today()
@@ -107,7 +186,6 @@ with left_col:
             "name": name,
             "exercise": exercise,
             "reps": int(reps),
-            "pullup_reps": int(reps) if exercise == "Pull-up" else 0,
             "date": today.isoformat(),
             "week_index": int(week_index),
         }
@@ -120,43 +198,56 @@ with left_col:
 
         st.success(f"Saved: {name} – {reps} x {exercise} on {today} 💪")
 
+    if df.empty:
+        current_week = 0
+    else:
+        current_week = int(df["week_index"].max())
+
     # -----------------------------
     # WEEKLY STANDINGS
     # -----------------------------
-    with right_col:
-        if not df.empty:
-            person_week = df.groupby(["week_index", "name"]).agg(
-                total_reps=("reps", "sum"),
-                total_pullups=("pullup_reps", "sum")
-            ).reset_index()
 
-            current_week = int(person_week["week_index"].max())
-            current_week_data = person_week[person_week["week_index"] == current_week]
+    st.markdown("---")
 
-            current_week_data["completed"] = (
-                    (current_week_data["total_reps"] >= 500) &
-                    (current_week_data["total_pullups"] >= 100)
+    col_left, col_right = st.columns(2)
+
+    def render_person_week(person, weekly_df, week_index):
+        st.markdown(f"## {person}")
+
+        person_week_df = weekly_df[
+            (weekly_df["name"] == person) &
+            (weekly_df["week_index"] == week_index)
+            ]
+
+        status = evaluate_week_status(person_week_df, CHALLENGE_CONFIG)
+
+    #total = df.groupby(["name", "week_index"])["reps"].sum()
+    #st.write("Total reps - ", total, "/1000")
+    # st.progress(total/1000)
+
+        for exercise_key, cfg in sorted(
+                CHALLENGE_CONFIG.items(),
+                key=lambda x: x[1]["order"]
+        ):
+            info = status["exercise_status"][exercise_key]
+
+            st.write(
+                f"**{cfg['display_name']}** — "
+                f"{info['reps']} / {info['target']}"
             )
-            current_week_data["status"] = current_week_data["completed"].apply(
-                lambda x: "Completed" if x else "Not yet"
-            )
+            st.progress(info["progress"])
 
-            st.subheader(f"Week {current_week} standings")
+        if status["week_completed"]:
+            st.success("✅ Week completed")
+        else:
+            st.warning("❌ Week not completed")
 
-            for _, row in current_week_data.iterrows():
-                st.write(f"### {row['name']}")
+    with col_left:
+        render_person_week("Felipe", weekly_exercise_reps, current_week)
 
-                # Reps progress
-                reps_progress = min(row["total_reps"] / 500, 1.0)
-                st.write(f"Reps: {row['total_reps']} / 500")
-                st.progress(reps_progress)
+    with col_right:
+        render_person_week("Kaden", weekly_exercise_reps, current_week)
 
-                # Pull-ups progress
-                pull_progress = min(row["total_pullups"] / 100, 1.0)
-                st.write(f"Pull-ups: {row['total_pullups']} / 100")
-                st.progress(pull_progress)
 
-                if row["total_reps"] >= 500 & row["total_pullups"] >= 100:
-                    st.write(f"Congrats, {row['name']}! You've completed the week {current_week}")
 
 

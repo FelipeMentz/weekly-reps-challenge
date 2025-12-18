@@ -1,6 +1,8 @@
 # config.py
 # Single source of truth for the Weekly Reps Challenge
 
+MODE = "prod"   # change to "prod" when deploying
+
 CHALLENGE_CONFIG = {
     "squat": {
         "display_name": "Squats",
