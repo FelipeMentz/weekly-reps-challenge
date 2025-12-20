@@ -1,7 +1,7 @@
 # config.py
 # Single source of truth for the Weekly Reps Challenge
 
-MODE = "dev"   # change to "prod" when deploying
+MODE = "prod"   # change to "prod" when deploying
 
 CHALLENGE_CONFIG = {
     "squat": {
