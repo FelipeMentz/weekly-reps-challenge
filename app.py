@@ -207,7 +207,7 @@ else:
 # WEEKLY STANDINGS
 # -----------------------------
 
-st.markdown("---")
+st.markdown(f"## Week {current_week} standings")
 
 col_left, col_right = st.columns(2)
 
@@ -237,8 +237,6 @@ def render_person_week(person, weekly_df, week_index):
         st.success("✅ Week completed")
     else:
         st.warning("❌ Week not completed")
-
-st.markdown(f"## Week {current_week} standings")
 
 with col_left:
     render_person_week("Felipe", weekly_exercise_reps, current_week)
