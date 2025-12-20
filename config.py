@@ -1,26 +1,26 @@
 # config.py
 # Single source of truth for the Weekly Reps Challenge
 
-MODE = "prod"   # change to "prod" when deploying
+MODE = "dev"   # change to "prod" when deploying
 
 CHALLENGE_CONFIG = {
     "squat": {
-        "display_name": "Squats",
+        "display_name": "Squat",
         "weekly_target": 400,
         "order": 1,
     },
     "push-up": {
-        "display_name": "Push-ups",
+        "display_name": "Push-up",
         "weekly_target": 300,
         "order": 2,
     },
     "dip": {
-        "display_name": "Dips",
+        "display_name": "Dip",
         "weekly_target": 200,
         "order": 3,
     },
     "pull-up": {
-        "display_name": "Pull-ups",
+        "display_name": "Pull-up",
         "weekly_target": 100,
         "order": 4,
     },

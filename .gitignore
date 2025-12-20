@@ -1,7 +1,3 @@
-# Local-only development files
-app_local.py
-data/
-
 # PyCharm project files
 .idea/
 

@@ -178,75 +178,73 @@ with st.form("log_form"):
         submitted = st.form_submit_button("Submit")
 
 
-    if submitted:
-        today = date.today()
-        week_index = get_custom_week_index(today)
+if submitted:
+    today = date.today()
+    week_index = get_custom_week_index(today)
 
-        new_row = {
-            "name": name,
-            "exercise": exercise,
-            "reps": int(reps),
-            "date": today.isoformat(),
-            "week_index": int(week_index),
+    new_row = {
+        "name": name,
+        "exercise": exercise,
+        "reps": int(reps),
+        "date": today.isoformat(),
+        "week_index": int(week_index),
         }
 
-        # Update in-memory df
-        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+    # Update in-memory df
+    df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
 
-        # Save ONLY to Google Sheets
-        append_to_sheets(sheet, new_row)
+    # Save ONLY to Google Sheets
+    append_to_sheets(sheet, new_row)
 
-        st.success(f"Saved: {name} – {reps} x {exercise} on {today} 💪")
+    st.success(f"Saved: {name} – {reps} x {exercise} on {today} 💪")
 
-    if df.empty:
-        current_week = 0
-    else:
-        current_week = int(df["week_index"].max())
+if df.empty:
+    current_week = 0
+else:
+    current_week = int(df["week_index"].max())
 
-    # -----------------------------
-    # WEEKLY STANDINGS
-    # -----------------------------
+# -----------------------------
+# WEEKLY STANDINGS
+# -----------------------------
 
-    st.markdown("---")
+st.markdown("---")
 
-    col_left, col_right = st.columns(2)
+col_left, col_right = st.columns(2)
 
-    def render_person_week(person, weekly_df, week_index):
-        st.markdown(f"## {person}")
+def render_person_week(person, weekly_df, week_index):
+    st.markdown(f"## {person}")
 
-        person_week_df = weekly_df[
-            (weekly_df["name"] == person) &
-            (weekly_df["week_index"] == week_index)
-            ]
+    person_week_df = weekly_df[
+        (weekly_df["name"] == person) &
+        (weekly_df["week_index"] == week_index)
+        ]
 
-        status = evaluate_week_status(person_week_df, CHALLENGE_CONFIG)
+    status = evaluate_week_status(person_week_df, CHALLENGE_CONFIG)
 
-    #total = df.groupby(["name", "week_index"])["reps"].sum()
-    #st.write("Total reps - ", total, "/1000")
-    # st.progress(total/1000)
-
-        for exercise_key, cfg in sorted(
-                CHALLENGE_CONFIG.items(),
-                key=lambda x: x[1]["order"]
+    for exercise_key, cfg in sorted(
+        CHALLENGE_CONFIG.items(),
+        key=lambda x: x[1]["order"]
         ):
-            info = status["exercise_status"][exercise_key]
+        info = status["exercise_status"][exercise_key]
 
-            st.write(
-                f"**{cfg['display_name']}** — "
-                f"{info['reps']} / {info['target']}"
-            )
-            st.progress(info["progress"])
+        st.write(
+            f"**{cfg['display_name']}** — "
+            f"{info['reps']} / {info['target']}"
+        )
+        st.progress(info["progress"])
 
-        if status["week_completed"]:
-            st.success("✅ Week completed")
-        else:
-            st.warning("❌ Week not completed")
+    if status["week_completed"]:
+        st.success("✅ Week completed")
+    else:
+        st.warning("❌ Week not completed")
 
-    with col_left:
-        render_person_week("Felipe", weekly_exercise_reps, current_week)
+st.markdown(f"## Week {week_index} standings")
 
-    with col_right:
-        render_person_week("Kaden", weekly_exercise_reps, current_week)
+with col_left:
+    render_person_week("Felipe", weekly_exercise_reps, current_week)
+
+with col_right:
+    render_person_week("Kaden", weekly_exercise_reps, current_week)
 
 
 
