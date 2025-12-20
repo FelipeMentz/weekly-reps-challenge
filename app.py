@@ -238,7 +238,7 @@ def render_person_week(person, weekly_df, week_index):
     else:
         st.warning("❌ Week not completed")
 
-st.markdown(f"## Week {week_index} standings")
+st.markdown(f"## Week {current_week} standings")
 
 with col_left:
     render_person_week("Felipe", weekly_exercise_reps, current_week)
