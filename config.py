@@ -2,7 +2,8 @@
 # Single source of truth for the Weekly Reps Challenge
 
 from zoneinfo import ZoneInfo
-CHALLENGE_TIMEZONE = ZoneInfo("America/Chicago")  # US Central Time
+
+challenge_timezone = ZoneInfo("America/Chicago")
 
 MODE = "prod"   # change to "prod" when deploying
 
