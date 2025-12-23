@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 from datetime import date
+from datetime import datetime
+from config import CHALLENGE_TIMEZONE
 from config import CHALLENGE_CONFIG
 from config import MODE
 from pathlib import Path
@@ -179,7 +181,8 @@ with st.form("log_form"):
 
 
 if submitted:
-    today = date.today()
+    now = datetime.now(CHALLENGE_TIMEZONE)
+    today = now.date()
     week_index = get_custom_week_index(today)
 
     new_row = {
